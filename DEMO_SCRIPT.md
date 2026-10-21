@@ -1,0 +1,58 @@
+# สคริปต์นำเสนอผู้บริหาร: "เข้าใจระบบใหญ่ใน 10 นาที ด้วย Graphify + Airflow" (~12-15 นาที)
+
+> เตรียมก่อน: รัน `make start build deploy` ล่วงหน้า, เปิด port-forward 8080 (Airflow) และ 8081 (Graphify), login admin/admin, trigger DAG ไว้ 1 รอบ
+
+## 0. เปิดเรื่อง (1 นาที)
+**พูด:** "ซอฟต์แวร์องค์กรโตขึ้นทุกปี คนใหม่ใช้เวลาหลายสัปดาห์กว่าจะเข้าใจโค้ด วันนี้จะโชว์ว่าเราใช้เครื่องมือ open-source ทำ 'แผนที่' ของระบบขนาดใหญ่ได้อัตโนมัติ และรันบน Kubernetes แบบเดียวกับ production"
+**จอ:** สไลด์ชื่อเรื่อง / README
+
+## 1. โจทย์และตัวอย่าง: Apache Airflow (1.5 นาที)
+**พูด:** "Airflow คือ workflow orchestrator ที่องค์กรทั่วโลกใช้ เป็นโปรเจกต์ open-source ขนาดใหญ่ ผู้ร่วมพัฒนาหลายพันคน — เหมาะเป็นตัวแทนระบบ legacy ขนาดใหญ่ขององค์กร"
+**จอ:** github.com/apache/airflow
+
+## 2. สถาปัตยกรรมเดโม (1.5 นาที)
+**จอ:** `kubectl -n airflow-demo get pods,svc`
+**พูด:** "ทุกอย่างอยู่บน laptop ผ่าน minikube: Postgres, Airflow 3 (api-server, scheduler, dag-processor, triggerer) และ Graphify — ย้ายขึ้น cloud Kubernetes ได้ด้วย manifest ชุดเดียวกัน"
+**คุณค่า:** ทดลองฟรี, ทำซ้ำได้, ไม่มีค่า cloud ระหว่าง PoC
+
+## 3. Graphify คืออะไร (1.5 นาที)
+**พูด:** "Graphify อ่านโค้ดด้วย parser (tree-sitter) แล้วสร้าง knowledge graph ของ class/function/import ทุกเส้นมีที่มา — **ไม่ใช้ AI ภายนอก ไม่ต้องมี API key โค้ดไม่ออกนอกเครื่อง** ⇒ ปลอดภัยต่อข้อมูลองค์กร ไม่มีค่า token"
+**จอ:** หน้า index ของ Graphify (localhost:8081)
+
+## 4. ตัวเลขภาพรวม (2 นาที)
+**จอ:** `GRAPH_REPORT.md` ส่วน Summary / `stats.json`
+**พูด (ผลจริงจากการวิเคราะห์ airflow-core):**
+- **20,497 nodes** (class, function, module, ไฟล์ UI)
+- **53,340 edges** (ความสัมพันธ์: เรียกใช้, import, สืบทอด) — 90% อ่านตรงจากโค้ด, 10% อนุมาน (ความมั่นใจเฉลี่ย 0.91)
+- **630 clusters** (กลุ่มโมดูลที่เกาะกลุ่มกัน)
+- ใช้เวลาวิเคราะห์ประมาณ 30 วินาที, ค่าใช้จ่าย token = 0
+"ถ้าคนอ่านเองต้องใช้หลายสัปดาห์"
+
+## 5. กราฟ interactive (2 นาที)
+**จอ:** `graph.html` — ซูม, ค้นหา, คลิก cluster
+**พูด:** "แต่ละวงคือกลุ่มโมดูล เส้นคือการพึ่งพากัน เห็นทันทีว่าส่วนไหนเป็นศูนย์กลาง ส่วนไหนแยกตัว เช่น cluster ฐานข้อมูล/migration, cluster API client ของ UI, cluster จัดการสถานะ task"
+
+## 6. Insight สำคัญ (2.5 นาที)
+**จอ:** `GRAPH_REPORT.md` ส่วน God Nodes และ Import Cycles
+**พูด:**
+- **หัวใจของระบบ (core abstractions):** `TaskInstance` (347 เส้น), `DagRun` (213), `SerializedDAG` (167), `SchedulerJobRunner` (150), รวมถึง `provide_session()` และ `ProvidersManager`
+  → "ถ้าจะแก้ส่วนนี้ต้องระวังที่สุด เพราะกระทบทั้งระบบ = จุดที่ควรมีเทสต์และ reviewer อาวุโส"
+- **Circular imports ใน UI:** พบ ~14 วงจร ส่วนใหญ่วนผ่าน `ui/src/utils/links.ts` ↔ `ui/src/router.tsx`
+  → "เป็น technical debt ที่ชี้เป้าได้ทันที ลดความเสี่ยงบั๊กและทำให้ build/refactor ง่ายขึ้น"
+- ฝั่ง UI ใช้ i18n (`react-i18next`) เชื่อมโยงมากที่สุด → รองรับหลายภาษาอย่างเป็นระบบ
+
+## 7. ทำให้เป็นอัตโนมัติด้วย Airflow (2 นาที)
+**จอ:** Airflow UI → DAG `demo_simple_etl` (Graph view) แล้ว `graphify_code_report` → Trigger → Logs ของ task `report`
+**พูด:** "Airflow รัน data pipeline ทั่วไป (ETL) และยังดึงผลวิเคราะห์โค้ดมาสรุปเป็นรายงานรายวันได้ — ต่อยอดส่ง Slack/อีเมล หรือเก็บเป็น dashboard แนวโน้มความซับซ้อนของโค้ด"
+
+## 8. คุณค่าทางธุรกิจ & ขั้นต่อไป (1.5 นาที)
+- **Onboarding เร็วขึ้น**: dev ใหม่เห็นแผนที่ระบบตั้งแต่วันแรก
+- **ลดความเสี่ยงการเปลี่ยนแปลง**: รู้ว่าโมดูลไหนกระทบกว้าง (impact analysis)
+- **มองเห็น technical debt**: circular dependency, จุดพึ่งพาสูง
+- **ปลอดภัย & ต้นทุนต่ำ**: open-source, รันภายใน, ไม่ส่งโค้ดออก, ไม่มีค่า API
+- **ขั้นต่อไป**: PoC กับ repo ภายในองค์กร 1-2 ระบบ, ตั้ง DAG รายสัปดาห์, เชื่อม CI
+
+## 9. Q&A (เผื่อ 2-3 นาที)
+- *ต้องใช้ AI ไหม?* — ไม่จำเป็น ส่วน code เป็น AST ล้วน; การตั้งชื่อ cluster/วิเคราะห์เอกสารใช้ LLM ได้ถ้าต้องการ (optional)
+- *ใช้กับภาษาอื่นได้ไหม?* — รองรับหลายภาษา (Python, TypeScript ฯลฯ) ผ่าน tree-sitter
+- *ขึ้น production ยังไง?* — manifest เดียวกันขึ้น EKS/GKE/AKS ได้ เปลี่ยน secret และใช้ Postgres managed
