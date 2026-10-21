@@ -48,29 +48,37 @@ def git_changed_files(base: str, head: str, repo: Path, prefix: str) -> list[Pat
 
 
 def git_changed_symbols(base: str, head: str, repo: Path, path: Path) -> set[str]:
-    """Best-effort: function/class names touched in diff hunks."""
+    """Best-effort: function/class names touched in diff hunks (including body edits)."""
     rel = path.relative_to(repo).as_posix()
     try:
         diff = run(["git", "diff", f"{base}..{head}", "-U0", "--", rel], cwd=repo)
     except subprocess.CalledProcessError:
         return set()
     symbols: set[str] = set()
+    changed_new_lines: set[int] = set()
     for line in diff.splitlines():
+        if line.startswith("@@"):
+            # @@ -a,b +c,d @@
+            parts = line.split("+", 2)
+            if len(parts) >= 2:
+                span = parts[1].split("@@")[0].strip().split(",")[0]
+                if span.isdigit():
+                    start = int(span)
+                    changed_new_lines.add(start)
         if line.startswith(("+", "-")) and not line.startswith(("+++", "---")):
             stripped = line[1:].strip()
             if stripped.startswith("def ") or stripped.startswith("async def "):
                 symbols.add(stripped.split("(")[0].replace("def ", "").replace("async ", "").strip())
             elif stripped.startswith("class "):
                 symbols.add(stripped.split("(")[0].split(":")[0].replace("class ", "").strip())
-    if not symbols and path.suffix == ".py":
-        # File-level change: all top-level defs in the new version
+    if path.suffix == ".py" and changed_new_lines:
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
-            for node in tree.body:
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    symbols.add(node.name)
-                elif isinstance(node, ast.ClassDef):
-                    symbols.add(node.name)
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    end = getattr(node, "end_lineno", node.lineno)
+                    if any(node.lineno <= ln <= (end or node.lineno) for ln in changed_new_lines):
+                        symbols.add(node.name)
         except OSError:
             pass
     return symbols
@@ -354,12 +362,15 @@ def build_impact_rows(
             if dp in rel and info["dag_ids"]:
                 changed_dag_ids |= info["dag_ids"]
 
-    if changed_dag_ids:
+    affected_dag_ids = {h.dag_id for r in rows for h in r.hits if h.link_type == "code import"}
+    runtime_sources = changed_dag_ids | affected_dag_ids
+
+    if runtime_sources:
         runtime_row = ImpactRow(changed="(runtime cross-DAG)")
         seen_rt: set[tuple[str, str | None, str]] = set()
         for dag_path, info in dag_meta.items():
             for ext_dag, ext_task in info["external_waits"]:
-                if ext_dag in changed_dag_ids:
+                if ext_dag in runtime_sources:
                     for dag_id in info["dag_ids"]:
                         key = (dag_id, ext_task or "wait", "runtime")
                         if key not in seen_rt:
@@ -379,7 +390,7 @@ def build_impact_rows(
             for dag_id in info["dag_ids"]:
                 outlet_by_dag[dag_id] |= info["asset_outlets"]
                 inlet_by_dag[dag_id] |= info["asset_inlets"]
-        for producer in changed_dag_ids:
+        for producer in runtime_sources:
             for uri in outlet_by_dag.get(producer, ()):
                 for consumer, inlets in inlet_by_dag.items():
                     if uri in inlets:
