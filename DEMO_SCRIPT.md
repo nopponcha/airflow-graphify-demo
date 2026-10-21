@@ -12,7 +12,9 @@
 
 ## 2. สถาปัตยกรรมเดโม (1.5 นาที)
 **จอ:** `kubectl -n airflow-demo get pods,svc`
-**พูด:** "ทุกอย่างอยู่บน laptop ผ่าน minikube: Postgres, Airflow 3 (api-server, scheduler, dag-processor, triggerer) และ Graphify — ย้ายขึ้น cloud Kubernetes ได้ด้วย manifest ชุดเดียวกัน"
+**พูด:** "ทุกอย่างอยู่บน laptop ผ่าน minikube: Postgres, Airflow 3 (api-server, scheduler, dag-processor, triggerer) และ Graphify — **แต่ละ task ใน DAG ไม่รันใน scheduler โดยตรง แต่สปอว์ Kubernetes pod จริงผ่าน KubernetesPodOperator** เหมือน production ที่ worker เป็น pod"
+**จอ (terminal คู่):** `kubectl get pods -n airflow-demo -w` หรือ `make watch-pods`
+**พูด:** "ServiceAccount `airflow` + Role ใน namespace ให้ scheduler สร้าง/ลบ pod task ได้ — ย้าย manifest ชุดนี้ขึ้น EKS/GKE ได้"
 **คุณค่า:** ทดลองฟรี, ทำซ้ำได้, ไม่มีค่า cloud ระหว่าง PoC
 
 ## 3. Graphify คืออะไร (1.5 นาที)
@@ -41,9 +43,13 @@
   → "เป็น technical debt ที่ชี้เป้าได้ทันที ลดความเสี่ยงบั๊กและทำให้ build/refactor ง่ายขึ้น"
 - ฝั่ง UI ใช้ i18n (`react-i18next`) เชื่อมโยงมากที่สุด → รองรับหลายภาษาอย่างเป็นระบบ
 
-## 7. ทำให้เป็นอัตโนมัติด้วย Airflow (2 นาที)
-**จอ:** Airflow UI → DAG `demo_simple_etl` (Graph view) แล้ว `graphify_code_report` → Trigger → Logs ของ task `report`
-**พูด:** "Airflow รัน data pipeline ทั่วไป (ETL) และยังดึงผลวิเคราะห์โค้ดมาสรุปเป็นรายงานรายวันได้ — ต่อยอดส่ง Slack/อีเมล หรือเก็บเป็น dashboard แนวโน้มความซับซ้อนของโค้ด"
+## 7. ทำให้เป็นอัตโนมัติด้วย Airflow + KPO (2.5 นาที)
+**จอ:** Airflow UI → Trigger DAG `demo_simple_etl` — ดู Graph view (extract → transform → load)
+**จอคู่:** `kubectl get pods -n airflow-demo -w` — ชี้ให้เห็น pod `demo-etl-extract-*`, `demo-etl-transform-*`, `demo-etl-load-*` โผล่แล้วหาย (delete pod หลังจบ)
+**พูด:** "แต่ละขั้น ETL คือ container image แยก (python / busybox) multi-arch บน M2 — ข้อมูลส่งต่อด้วย XCom จาก `/airflow/xcom/return.json`"
+**จอ:** Trigger `graphify_code_report` → Logs ของ task `report` (pod ยิง HTTP ไป Service `graphify` ใน cluster)
+**พูด (optional):** DAG `graphify_analyze_job` รันการวิเคราะห์ Graphify ทั้งก้อนเป็น pod เดียว (`graphify-airflow:local`) — เหมาะ re-scan ตาม demand"
+**พูด:** "Airflow orchestrate ได้ทั้ง ETL และรายงานความซับซ้อนโค้ดรายวัน — ต่อยอด Slack/email/dashboard ได้"
 
 ## 8. คุณค่าทางธุรกิจ & ขั้นต่อไป (1.5 นาที)
 - **Onboarding เร็วขึ้น**: dev ใหม่เห็นแผนที่ระบบตั้งแต่วันแรก

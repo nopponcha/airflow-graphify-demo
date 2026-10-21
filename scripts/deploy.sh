@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 NS=airflow-demo
-kubectl apply -f k8s/00-namespace.yaml -f k8s/10-secrets-config.yaml -f k8s/20-postgres.yaml
+kubectl apply -f k8s/00-namespace.yaml -f k8s/10-secrets-config.yaml -f k8s/05-airflow-rbac.yaml -f k8s/20-postgres.yaml
 kubectl -n $NS rollout status statefulset/postgres --timeout=300s
 kubectl -n $NS delete job airflow-init --ignore-not-found
 kubectl apply -f k8s/30-airflow-init-job.yaml

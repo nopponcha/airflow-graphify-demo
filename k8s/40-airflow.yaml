@@ -11,6 +11,7 @@ spec:
     metadata:
       labels: {app: airflow-api-server}
     spec:
+      serviceAccountName: airflow
       initContainers:
         - name: wait-db-migrated
           image: airflow-demo:local
@@ -59,6 +60,7 @@ spec:
     metadata:
       labels: {app: airflow-scheduler}
     spec:
+      serviceAccountName: airflow
       initContainers:
         - name: wait-db-migrated
           image: airflow-demo:local
@@ -92,6 +94,7 @@ spec:
     metadata:
       labels: {app: airflow-dag-processor}
     spec:
+      serviceAccountName: airflow
       initContainers:
         - name: wait-db-migrated
           image: airflow-demo:local
@@ -125,6 +128,7 @@ spec:
     metadata:
       labels: {app: airflow-triggerer}
     spec:
+      serviceAccountName: airflow
       initContainers:
         - name: wait-db-migrated
           image: airflow-demo:local
