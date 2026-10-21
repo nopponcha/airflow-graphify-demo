@@ -1,0 +1,22 @@
+# Placeholder CODEOWNERS for the impact-analysis demo.
+# Replace @nopponcha with real GitHub team handles (e.g. @myorg/team-sales).
+
+# Shared pipeline — changes ripple to many team DAGs
+/airflow/dags/common/ @nopponcha
+
+# Team DAGs
+/airflow/dags/teams/team_sales_daily.py @nopponcha
+/airflow/dags/teams/team_marketing_campaign.py @nopponcha
+/airflow/dags/teams/team_finance_report.py @nopponcha
+/airflow/dags/teams/team_ops_monitoring.py @nopponcha
+/airflow/dags/teams/assets_demo.py @nopponcha
+
+# Platform / KPO demos
+/airflow/dags/demo_etl.py @nopponcha
+/airflow/dags/graphify_report.py @nopponcha
+/airflow/dags/graphify_analyze_job.py @nopponcha
+
+# Ownership map + impact tooling
+/airflow/dags/OWNERS.yaml @nopponcha
+/scripts/impact_analysis.py @nopponcha
+/.github/workflows/dag-impact.yml @nopponcha

@@ -28,3 +28,8 @@ env/
 
 # Archives (do not commit demo zips)
 *.zip
+
+# Graphify analysis output (generated in CI / local impact runs)
+airflow/dags/graphify-out/
+dag-impact.md
+dag-impact.json

@@ -51,14 +51,21 @@
 **พูด (optional):** DAG `graphify_analyze_job` รันการวิเคราะห์ Graphify ทั้งก้อนเป็น pod เดียว (`graphify-airflow:local`) — เหมาะ re-scan ตาม demand"
 **พูด:** "Airflow orchestrate ได้ทั้ง ETL และรายงานความซับซ้อนโค้ดรายวัน — ต่อยอด Slack/email/dashboard ได้"
 
-## 8. คุณค่าทางธุรกิจ & ขั้นต่อไป (1.5 นาที)
+## 8. Cross-team impact เมื่อแก้ shared code (2 นาที)
+**พูด:** "องค์กรจริงมีหลายทีมใช้ library ร่วม — แก้ `clean_data()` ครั้งเดียวอาจทำให้ DAG ของ Sales, Marketing, Finance, Ops พังพร้อมกัน"
+**จอ:** โครง `airflow/dags/common/pipeline.py` + DAG `team_sales_daily`, `team_marketing_campaign`, …
+**จอ (live หรือ screenshot):** เปิด PR จาก branch `demo/team-platform-clean-data-impact` ที่แก้ `clean_data` → GitHub Action **DAG impact analysis** → sticky comment แสดงตาราง DAG/task + owner
+**พูด:** "Graphify สร้างกราฟ import/call จาก AST — ไม่ใช้ LLM — แล้วรวมกับ ExternalTaskSensor (Ops รอ Sales) และ Asset (Finance ถูก trigger จาก Sales) เพื่อจับ **runtime** cross-DAG ด้วย"
+**ขั้นเตรียม:** ดู README หมวด *Cross-team DAG impact* และ `docs/impact-example.md`
+
+## 9. คุณค่าทางธุรกิจ & ขั้นต่อไป (1.5 นาที)
 - **Onboarding เร็วขึ้น**: dev ใหม่เห็นแผนที่ระบบตั้งแต่วันแรก
 - **ลดความเสี่ยงการเปลี่ยนแปลง**: รู้ว่าโมดูลไหนกระทบกว้าง (impact analysis)
 - **มองเห็น technical debt**: circular dependency, จุดพึ่งพาสูง
 - **ปลอดภัย & ต้นทุนต่ำ**: open-source, รันภายใน, ไม่ส่งโค้ดออก, ไม่มีค่า API
 - **ขั้นต่อไป**: PoC กับ repo ภายในองค์กร 1-2 ระบบ, ตั้ง DAG รายสัปดาห์, เชื่อม CI
 
-## 9. Q&A (เผื่อ 2-3 นาที)
+## 10. Q&A (เผื่อ 2-3 นาที)
 - *ต้องใช้ AI ไหม?* — ไม่จำเป็น ส่วน code เป็น AST ล้วน; การตั้งชื่อ cluster/วิเคราะห์เอกสารใช้ LLM ได้ถ้าต้องการ (optional)
 - *ใช้กับภาษาอื่นได้ไหม?* — รองรับหลายภาษา (Python, TypeScript ฯลฯ) ผ่าน tree-sitter
 - *ขึ้น production ยังไง?* — manifest เดียวกันขึ้น EKS/GKE/AKS ได้ เปลี่ยน secret และใช้ Postgres managed

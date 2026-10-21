@@ -1,0 +1,32 @@
+# Demo ownership map for DAG impact analysis (placeholders — not real on-call).
+teams:
+  sales:
+    display: Team Sales
+    github: "@nopponcha"
+  marketing:
+    display: Team Marketing
+    github: "@nopponcha"
+  finance:
+    display: Team Finance
+    github: "@nopponcha"
+  ops:
+    display: Team Ops
+    github: "@nopponcha"
+  platform:
+    display: Platform / Shared Lib
+    github: "@nopponcha"
+
+dag_owners:
+  team_sales_daily: sales
+  team_marketing_campaign: marketing
+  team_finance_report: finance
+  team_ops_monitoring: ops
+  demo_simple_etl: platform
+  graphify_code_report: platform
+  graphify_analyze_job: platform
+
+# Shared modules — any change may affect multiple DAGs (resolved via graph + imports).
+module_owners:
+  common.pipeline: platform
+  common: platform
+  teams.assets_demo: platform

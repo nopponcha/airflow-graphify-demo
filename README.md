@@ -13,8 +13,13 @@ airflow/    Dockerfile (apache/airflow:3.3.2 + cncf-kubernetes provider) + dags/
             dags/graphify_report.py       ดึงสถิติจาก service graphify ผ่าน pod
             dags/graphify_analyze_job.py  (optional) รัน analyze.sh ใน pod graphify-airflow:local
             dags/k8s_demo_common.py       ค่า default ของ KPO / RBAC
+            dags/common/pipeline.py       ฟังก์ชัน shared (clean_data, enrich_customer, …)
+            dags/teams/team_*.py          DAG หลายทีม + ExternalTaskSensor / Asset
+            dags/OWNERS.yaml              แมป DAG → ทีม (สำหรับ impact comment)
 k8s/        namespace, RBAC (ServiceAccount airflow), secret/configmap, postgres, init job, airflow, graphify
-scripts/    build.sh deploy.sh teardown.sh
+scripts/    build.sh deploy.sh teardown.sh impact_analysis.py
+.github/    workflows/dag-impact.yml, CODEOWNERS (placeholder)
+docs/       impact-example.md — ตัวอย่างผล impact จาก Graphify + AST
 Makefile    make start | build | deploy | ui | graph | watch-pods | validate | teardown
 ```
 
@@ -99,6 +104,31 @@ minikube stop
 - task pod `ImagePullBackOff` (python/busybox) → minikube ต้อง pull ได้จาก Docker Hub ครั้งแรก
 - `graphify_analyze_job` ล้ม → ต้อง build `graphify-airflow:local` ใน minikube และ pod ต้องออก internet ได้
 - รหัสผ่านใน `k8s/10-secrets-config.yaml` เป็นค่าเดโมเท่านั้น
+
+## Cross-team DAG impact (PR demo)
+หลายทีมใช้ `common.pipeline` ร่วมกัน — แก้ `clean_data()` ทีเดียวอาจกระทบ DAG ของ Sales / Marketing / Finance / Ops  
+GitHub Action `.github/workflows/dag-impact.yml` รันเมื่อ PR แตะ `airflow/dags/**`:
+1. `graphifyy==0.9.92` สร้าง knowledge graph (`graphify update dags --no-cluster`)
+2. `scripts/impact_analysis.py` ไล่ reverse dependency จากไฟล์ที่เปลี่ยน + AST (ExternalTaskSensor, Asset schedule)
+3. โพสต์ **sticky comment** บน PR พร้อมตาราง DAG/task ที่ได้รับผลและ `@owner` (placeholder `@nopponcha`)
+
+### เตรียมเดโมสด (Team Platform แก้ shared lib)
+```bash
+git checkout main && git pull
+git checkout -b demo/team-platform-clean-data-impact
+$EDITOR airflow/dags/common/pipeline.py   # แก้ clean_data() เช่นเพิ่ม validation
+git add airflow/dags/common/pipeline.py
+git commit -m "platform: tighten clean_data validation"
+git push -u origin demo/team-platform-clean-data-impact
+# เปิด PR ไป main บน GitHub → รอ workflow "DAG impact analysis" → อ่าน comment
+```
+
+ทดสอบ local (ไม่ต้องเปิด PR):
+```bash
+pip install graphifyy==0.9.92 pyyaml
+python scripts/impact_analysis.py --base origin/main --head HEAD --output-md /tmp/impact.md
+# ตัวอย่าง output ที่ commit ไว้: docs/impact-example.md
+```
 
 ## Validate ใน repo
 ```bash
