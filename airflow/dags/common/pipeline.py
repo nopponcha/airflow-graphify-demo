@@ -5,15 +5,21 @@ from typing import Any
 
 
 def clean_data(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Normalize keys and drop rows without an id (used by sales, marketing, finance, ops)."""
+    """Normalize keys and drop rows without an id (used by sales, marketing, finance, ops).
+
+    Demo change: reject negative amounts early (Team Platform PR).
+    """
     cleaned: list[dict[str, Any]] = []
     for row in rows:
         if not row.get("id"):
             continue
+        amount = float(row.get("amount", 0) or 0)
+        if amount < 0:
+            continue
         cleaned.append(
             {
                 "id": str(row["id"]).strip(),
-                "amount": float(row.get("amount", 0) or 0),
+                "amount": amount,
                 "segment": (row.get("segment") or "unknown").lower(),
             }
         )
